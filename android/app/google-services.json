@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "326976631903",
+    "project_id": "goldsnuts-b1b5b",
+    "storage_bucket": "goldsnuts-b1b5b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:326976631903:android:f44464d1e32e50ad7e97ea",
+        "android_client_info": {
+          "package_name": "com.example.golds_nuts"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDVrL2XfDQkMtaOqHzTU1iR6Z_o2-E6ooQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
