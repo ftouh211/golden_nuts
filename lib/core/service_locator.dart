@@ -10,6 +10,17 @@ import 'package:golds_nuts/features/auth/domain/usecases/login_usecase.dart';
 import 'package:golds_nuts/features/auth/domain/usecases/logout_usecase.dart';
 import 'package:golds_nuts/features/auth/presentation/bloc/login/login_bloc.dart';
 import 'package:golds_nuts/features/auth/presentation/bloc/logout/logout_bloc.dart';
+import 'package:golds_nuts/features/inventory/data/datasources/inventory_remote_data_source.dart';
+import 'package:golds_nuts/features/inventory/domain/repo/inventory_remote_data_source_impl.dart';
+import 'package:golds_nuts/features/inventory/domain/repo/inventory_repository.dart';
+import 'package:golds_nuts/features/inventory/domain/usecases/get_inventory_use_case.dart';
+import 'package:golds_nuts/features/inventory/presentation/bloc/inventory_bloc.dart';
+import 'package:golds_nuts/features/outgoing/data/datasources/outgoing_remote_data_source.dart';
+import 'package:golds_nuts/features/outgoing/domain/repo/outgoing_repository.dart';
+import 'package:golds_nuts/features/outgoing/domain/repo/outgoing_repository_impl.dart';
+import 'package:golds_nuts/features/outgoing/domain/usecases/add_outgoing_use_case.dart';
+import 'package:golds_nuts/features/outgoing/domain/usecases/get_outgoing_records_usecase.dart';
+import 'package:golds_nuts/features/outgoing/presenation/bloc/outgoing_bloc.dart';
 import 'package:golds_nuts/features/product/data/datasources/product_remote_data_source.dart';
 import 'package:golds_nuts/features/product/data/datasources/worker_remote_data_source.dart';
 import 'package:golds_nuts/features/product/domain/repo/product_repository.dart';
@@ -34,12 +45,14 @@ import 'package:golds_nuts/features/production/domain/repo/production_repository
 import 'package:golds_nuts/features/production/domain/repo/production_repository_impl.dart';
 import 'package:golds_nuts/features/production/domain/usecases/add_production_usecase.dart';
 import 'package:golds_nuts/features/production/domain/usecases/get_monthly_productions_usecase.dart';
+import 'package:golds_nuts/features/production/domain/usecases/watch_monthly_productions_usecase.dart';
 import 'package:golds_nuts/features/production/presentation/bloc/production/add_production/add_production_bloc.dart';
 import 'package:golds_nuts/features/production/presentation/bloc/production/get_monthly_productions/get_monthly_productions_bloc.dart';
+import 'package:golds_nuts/features/production/presentation/bloc/production/watch_monthly_productions/watch_monthly_productions_bloc.dart';
 
 final sl = GetIt.instance;
 
-void setupDependencies() {
+Future<void> setupDependencies() async {
   // Firebase Authentication
   sl.registerLazySingleton<FirebaseAuth>(() => FirebaseAuth.instance);
 
@@ -67,14 +80,13 @@ void setupDependencies() {
   // Bloc
   sl.registerFactory<LoginBloc>(() => LoginBloc(sl<LoginUseCase>()));
 
-
   // Logout
   sl.registerLazySingleton<LogoutUseCase>(
-        () => LogoutUseCase(repository: sl<AuthRepository>()),
+    () => LogoutUseCase(repository: sl<AuthRepository>()),
   );
 
   sl.registerFactory<LogoutBloc>(
-        () => LogoutBloc(logoutUseCase: sl<LogoutUseCase>()),
+    () => LogoutBloc(logoutUseCase: sl<LogoutUseCase>()),
   );
   // ================= Product Feature =================
 
@@ -141,16 +153,10 @@ void setupDependencies() {
     ),
   );
 
-  sl.registerLazySingleton(
-        () => UpdateWorkerStatusUseCase(
-      repository: sl(),
-    ),
-  );
+  sl.registerLazySingleton(() => UpdateWorkerStatusUseCase(repository: sl()));
 
   sl.registerFactory(
-        () => UpdateWorkerStatusBloc(
-      updateWorkerStatusUseCase: sl(),
-    ),
+    () => UpdateWorkerStatusBloc(updateWorkerStatusUseCase: sl()),
   );
   // Use Case
   sl.registerLazySingleton<CreateWorkerUseCase>(
@@ -173,45 +179,98 @@ void setupDependencies() {
   // ================= Production Feature =================
 
   // Data Source
+
   sl.registerLazySingleton<ProductionRemoteDataSource>(
-        () => ProductionRemoteDataSource(
+    () => ProductionRemoteDataSource(
       firestore: sl<FirebaseFirestore>(),
+      firebaseFunctions: sl<FirebaseFunctions>(),
     ),
   );
 
   // Repository
   sl.registerLazySingleton<ProductionRepository>(
-        () => ProductionRepositoryImpl(
+    () => ProductionRepositoryImpl(
       remoteDataSource: sl<ProductionRemoteDataSource>(),
     ),
   );
 
   // Use Cases
   sl.registerLazySingleton<AddProductionUseCase>(
-        () => AddProductionUseCase(
-      repository: sl<ProductionRepository>(),
-    ),
+    () => AddProductionUseCase(repository: sl<ProductionRepository>()),
   );
 
   sl.registerLazySingleton<GetMonthlyProductionsUseCase>(
-        () => GetMonthlyProductionsUseCase(
-      repository: sl<ProductionRepository>(),
-    ),
+    () => GetMonthlyProductionsUseCase(repository: sl<ProductionRepository>()),
   );
 
   // Blocs
   sl.registerFactory<AddProductionBloc>(
-        () => AddProductionBloc(
-      addProductionUseCase: sl<AddProductionUseCase>(),
-    ),
+    () => AddProductionBloc(addProductionUseCase: sl<AddProductionUseCase>()),
   );
 
   sl.registerFactory<GetMonthlyProductionsBloc>(
-        () => GetMonthlyProductionsBloc(
-      getMonthlyProductionsUseCase:
-      sl<GetMonthlyProductionsUseCase>(),
+    () => GetMonthlyProductionsBloc(
+      getMonthlyProductionsUseCase: sl<GetMonthlyProductionsUseCase>(),
     ),
   );
 
+  // Cloud Functions
+  sl.registerLazySingleton<FirebaseFunctions>(
+    () => FirebaseFunctions.instanceFor(region: 'us-central1'),
+  );
 
+  // Outgoing
+
+  sl.registerLazySingleton<OutgoingRemoteDataSource>(
+    () =>
+        OutgoingRemoteDataSourceImpl(firebaseFunctions: sl(), firestore: sl()),
+  );
+
+  sl.registerLazySingleton<OutgoingRepository>(
+    () => OutgoingRepositoryImpl(
+      remoteDataSource: sl<OutgoingRemoteDataSource>(),
+    ),
+  );
+
+  sl.registerLazySingleton<AddOutgoingUseCase>(
+    () => AddOutgoingUseCase(repository: sl<OutgoingRepository>()),
+  );
+
+  sl.registerFactory(
+    () =>
+        OutgoingBloc(addOutgoingUseCase: sl(), getOutgoingRecordsUseCase: sl()),
+  );
+  sl.registerLazySingleton(() => GetOutgoingRecordsUseCase(repository: sl()));
+  // Inventory
+
+  sl.registerLazySingleton<InventoryRemoteDataSource>(
+    () => InventoryRemoteDataSource(firestore: sl<FirebaseFirestore>()),
+  );
+
+  sl.registerLazySingleton<InventoryRepository>(
+    () => InventoryRepositoryImpl(
+      remoteDataSource: sl<InventoryRemoteDataSource>(),
+    ),
+  );
+
+  sl.registerLazySingleton<GetInventoryUseCase>(
+    () => GetInventoryUseCase(repository: sl<InventoryRepository>()),
+  );
+
+  sl.registerFactory<InventoryBloc>(
+    () => InventoryBloc(getInventoryUseCase: sl<GetInventoryUseCase>()),
+  );
+
+  sl.registerLazySingleton<WatchMonthlyProductionsUseCase>(
+        () => WatchMonthlyProductionsUseCase(
+      repository: sl<ProductionRepository>(),
+    ),
+  );
+
+  sl.registerFactory<WatchMonthlyProductionsBloc>(
+        () => WatchMonthlyProductionsBloc(
+      watchMonthlyProductionsUseCase:
+      sl<WatchMonthlyProductionsUseCase>(),
+    ),
+  );
 }

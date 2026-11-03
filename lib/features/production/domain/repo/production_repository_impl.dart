@@ -65,4 +65,23 @@ class ProductionRepositoryImpl implements ProductionRepository {
     }
   }
 
+  @override
+  Stream<Either<Failure, List<ProductionEntity>>> watchMonthlyProductions({
+    required DateTime month,
+    String? workerId,
+  }) {
+    return remoteDataSource
+        .watchMonthlyProductions(
+      month: month,
+      workerId: workerId,
+    )
+        .map<Either<Failure, List<ProductionEntity>>>(
+          (productions) => Right(productions),
+    )
+        .handleError((error) {
+      // Stream errors are handled by the Bloc.
+      throw error;
+    });
+  }
+
 }

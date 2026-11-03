@@ -12,4 +12,9 @@ abstract class ProductionRepository {
     required DateTime month,
     String? workerId,
   });
+
+  Stream<Either<Failure, List<ProductionEntity>>> watchMonthlyProductions({
+    required DateTime month,
+    String? workerId,
+  });
 }

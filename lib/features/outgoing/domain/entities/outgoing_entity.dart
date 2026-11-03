@@ -1,3 +1,4 @@
+
 import 'outgoing_item_entity.dart';
 
 class OutgoingEntity {

@@ -1,3 +1,4 @@
+
 class OutgoingItemEntity {
   final String productId;
   final String productName;
