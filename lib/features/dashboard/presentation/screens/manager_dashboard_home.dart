@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:golds_nuts/core/utils/color_manager.dart';
+import 'package:golds_nuts/features/auth/domain/entities/user_entity.dart';
 import 'package:golds_nuts/features/dashboard/presentation/screens/widgets/dashboard_header.dart';
 import 'package:golds_nuts/features/dashboard/presentation/screens/widgets/dashboard_quick_actions.dart';
 import 'package:golds_nuts/features/dashboard/presentation/screens/widgets/dashboard_stat_card.dart';
@@ -19,12 +20,12 @@ import 'package:golds_nuts/features/production/presentation/bloc/production/get_
 import 'package:golds_nuts/features/production/presentation/bloc/production/get_monthly_productions/get_monthly_productions_state.dart';
 
 class ManagerDashboardHome extends StatefulWidget {
-  final String managerName;
+  final UserEntity user;
   final ValueChanged<int> onNavigate;
 
   const ManagerDashboardHome({
     super.key,
-    required this.managerName,
+    required this.user,
     required this.onNavigate,
   });
 
@@ -39,8 +40,12 @@ class _ManagerDashboardHomeState extends State<ManagerDashboardHome> {
       backgroundColor: ColorManager.background,
       body: Column(
         children: [
-          DashboardHeader(managerName: widget.managerName),
-
+          DashboardHeader(
+            user: widget.user,
+            onSettingsTap: () {
+              widget.onNavigate(4);
+            },
+          ),
           Expanded(
             child: SingleChildScrollView(
               child: Padding(

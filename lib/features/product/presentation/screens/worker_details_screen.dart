@@ -8,9 +8,7 @@ import 'package:golds_nuts/features/product/presentation/bloc/worker/update_work
 import 'package:golds_nuts/features/product/presentation/bloc/worker/update_worker_status/update_worker_status_state.dart';
 import 'package:golds_nuts/features/product/presentation/screens/widgets/worker_info_card.dart';
 import 'package:golds_nuts/features/production/domain/entities/production_entity.dart';
-import 'package:golds_nuts/features/production/presentation/bloc/production/get_monthly_productions/get_monthly_productions_bloc.dart';
-import 'package:golds_nuts/features/production/presentation/bloc/production/get_monthly_productions/get_monthly_productions_event.dart';
-import 'package:golds_nuts/features/production/presentation/bloc/production/get_monthly_productions/get_monthly_productions_state.dart';
+import 'package:golds_nuts/features/production/presentation/bloc/production/watch_monthly_productions/watch_monthly_productions_bloc.dart';
 import 'package:golds_nuts/features/production/presentation/screens/worker/add_production_screen.dart';
 
 class WorkerDetailsScreen extends StatefulWidget {
@@ -23,7 +21,7 @@ class WorkerDetailsScreen extends StatefulWidget {
 }
 
 class _WorkerDetailsScreenState extends State<WorkerDetailsScreen> {
-  late final GetMonthlyProductionsBloc _productionsBloc;
+  late final WatchMonthlyProductionsBloc _productionsBloc;
 
   late bool _workerIsActive;
 
@@ -35,14 +33,15 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen> {
 
     _workerIsActive = widget.worker.isActive;
 
-    _productionsBloc = sl<GetMonthlyProductionsBloc>();
+    _productionsBloc = sl<WatchMonthlyProductionsBloc>();
 
-    _loadProductions();
+    _watchProductions();
   }
 
-  void _loadProductions() {
+  // Start listening to Firestore production updates.
+  void _watchProductions() {
     _productionsBloc.add(
-      GetMonthlyProductionsRequested(
+      WatchMonthlyProductionsRequested(
         month: _selectedMonth,
         workerId: widget.worker.uid,
       ),
@@ -57,7 +56,8 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen> {
       );
     });
 
-    _loadProductions();
+    // Restart the stream with the newly selected month.
+    _watchProductions();
   }
 
   String _monthName(DateTime date) {
@@ -86,7 +86,7 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen> {
   }
 
   Future<void> _addProduction() async {
-    final result = await Navigator.push<bool>(
+    await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (_) => AddProductionScreen(
@@ -97,9 +97,18 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen> {
       ),
     );
 
-    if (result == true && mounted) {
-      _loadProductions();
-    }
+    // No manual fetch is needed.
+    // Firestore stream will update the screen automatically.
+  }
+
+  Future<void> _refreshProductions() async {
+    _watchProductions();
+
+    await _productionsBloc.stream.firstWhere(
+      (state) =>
+          state is WatchMonthlyProductionsSuccess ||
+          state is WatchMonthlyProductionsFailure,
+    );
   }
 
   @override
@@ -143,22 +152,23 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen> {
         child: Scaffold(
           appBar: AppBar(title: const Text('Worker Details')),
           floatingActionButton: FloatingActionButton.extended(
+            heroTag: 'worker_details_add_production',
             onPressed: _addProduction,
             icon: const Icon(Icons.add),
             label: const Text('Add Production'),
           ),
           body:
               BlocBuilder<
-                GetMonthlyProductionsBloc,
-                GetMonthlyProductionsState
+                WatchMonthlyProductionsBloc,
+                WatchMonthlyProductionsState
               >(
                 builder: (context, state) {
-                  if (state is GetMonthlyProductionsLoading ||
-                      state is GetMonthlyProductionsInitial) {
+                  if (state is WatchMonthlyProductionsLoading ||
+                      state is WatchMonthlyProductionsInitial) {
                     return const Center(child: CircularProgressIndicator());
                   }
 
-                  if (state is GetMonthlyProductionsFailure) {
+                  if (state is WatchMonthlyProductionsFailure) {
                     return Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -166,7 +176,7 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen> {
                           Text(state.message),
                           const SizedBox(height: 12),
                           ElevatedButton(
-                            onPressed: _loadProductions,
+                            onPressed: _watchProductions,
                             child: const Text('Retry'),
                           ),
                         ],
@@ -174,7 +184,7 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen> {
                     );
                   }
 
-                  if (state is GetMonthlyProductionsSuccess) {
+                  if (state is WatchMonthlyProductionsSuccess) {
                     final productions = state.productions;
 
                     final totalCartons = productions.fold<int>(
@@ -203,16 +213,9 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen> {
                       ..sort((a, b) => b.compareTo(a));
 
                     return RefreshIndicator(
-                      onRefresh: () async {
-                        _loadProductions();
-
-                        await _productionsBloc.stream.firstWhere(
-                          (state) =>
-                              state is GetMonthlyProductionsSuccess ||
-                              state is GetMonthlyProductionsFailure,
-                        );
-                      },
+                      onRefresh: _refreshProductions,
                       child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
                         children: [
                           WorkerInfoCard(

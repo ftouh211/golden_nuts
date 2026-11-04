@@ -1,10 +1,18 @@
+
 import 'package:flutter/material.dart';
 import 'package:golds_nuts/core/utils/color_manager.dart';
+import 'package:golds_nuts/features/auth/domain/entities/user_entity.dart';
+import 'package:golds_nuts/features/notifications/presentation/screens/notifications_screen.dart';
 
 class DashboardHeader extends StatelessWidget {
-  final String managerName;
+  final UserEntity user;
+  final VoidCallback onSettingsTap;
 
-  const DashboardHeader({super.key, required this.managerName});
+  const DashboardHeader({
+    super.key,
+    required this.user,
+    required this.onSettingsTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -41,13 +49,48 @@ class DashboardHeader extends StatelessWidget {
 
           const SizedBox(height: 5),
 
-          Text(
-            managerName,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 27,
-              fontWeight: FontWeight.bold,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  user.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 27,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+
+              IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => NotificationsScreen(
+                        uid: user.uid,
+                      ),
+                    ),
+                  );
+                  },
+                tooltip: 'Notifications',
+                icon: const Icon(
+                  Icons.notifications_none_rounded,
+                  color: ColorManager.goldLight,
+                  size: 28,
+                ),
+              ),
+
+              IconButton(
+                onPressed: onSettingsTap,
+                tooltip: 'Settings',
+                icon: const Icon(
+                  Icons.settings_outlined,
+                  color: Colors.white,
+                  size: 26,
+                ),
+              ),
+            ],
           ),
 
           const SizedBox(height: 8),

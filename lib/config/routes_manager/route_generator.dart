@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:golds_nuts/config/routes_manager/routes.dart';
 import 'package:golds_nuts/core/service_locator.dart';
+import 'package:golds_nuts/features/auth/domain/entities/user_entity.dart';
 import 'package:golds_nuts/features/auth/presentation/bloc/login/login_bloc.dart';
 import 'package:golds_nuts/features/auth/presentation/screens/login_screen.dart';
 import 'package:golds_nuts/features/product/presentation/bloc/product_bloc.dart';
@@ -21,8 +22,10 @@ class RouteGenerator {
         );
 
       case Routes.managerDashboardScreenRoute:
+        final user = settings.arguments as UserEntity;
+
         return MaterialPageRoute(
-          builder: (_) => const ManagerDashboardScreen(),
+          builder: (_) => ManagerDashboardScreen(user: user),
         );
 
       case Routes.managerScreen:

@@ -8,14 +8,10 @@ import 'package:golds_nuts/features/production/presentation/bloc/production/get_
 import 'package:golds_nuts/features/production/presentation/bloc/production/get_monthly_productions/get_monthly_productions_state.dart';
 import 'package:golds_nuts/features/production/presentation/screens/worker/add_production_screen.dart';
 
-
 class WorkerProduction extends StatefulWidget {
   final UserEntity user;
 
-  const WorkerProduction({
-    super.key,
-    required this.user,
-  });
+  const WorkerProduction({super.key, required this.user});
 
   @override
   State<WorkerProduction> createState() => _WorkerProductionState();
@@ -81,13 +77,10 @@ class _WorkerProductionState extends State<WorkerProduction> {
             ),
           ],
         ),
-        body: BlocBuilder<GetMonthlyProductionsBloc,
-            GetMonthlyProductionsState>(
+        body: BlocBuilder<GetMonthlyProductionsBloc, GetMonthlyProductionsState>(
           builder: (context, state) {
             if (state is GetMonthlyProductionsLoading) {
-              return const Center(
-                child: CircularProgressIndicator(),
-              );
+              return const Center(child: CircularProgressIndicator());
             }
 
             if (state is GetMonthlyProductionsFailure) {
@@ -111,12 +104,12 @@ class _WorkerProductionState extends State<WorkerProduction> {
 
               final totalCartons = productions.fold<int>(
                 0,
-                    (sum, production) => sum + production.totalCartons,
+                (sum, production) => sum + production.totalCartons,
               );
 
               final totalAmount = productions.fold<double>(
                 0,
-                    (sum, production) => sum + production.totalAmount,
+                (sum, production) => sum + production.totalAmount,
               );
 
               final recentProductions = [...productions]
@@ -136,9 +129,7 @@ class _WorkerProductionState extends State<WorkerProduction> {
                     const SizedBox(height: 6),
                     Text(
                       'Here is your production summary for this month.',
-                      style: TextStyle(
-                        color: ColorManager.textSecondary,
-                      ),
+                      style: TextStyle(color: ColorManager.textSecondary),
                     ),
                     const SizedBox(height: 24),
 
@@ -178,9 +169,7 @@ class _WorkerProductionState extends State<WorkerProduction> {
                         ),
                         Text(
                           '${productions.length} records',
-                          style: TextStyle(
-                            color: ColorManager.textSecondary,
-                          ),
+                          style: TextStyle(color: ColorManager.textSecondary),
                         ),
                       ],
                     ),
@@ -231,7 +220,9 @@ class _WorkerProductionState extends State<WorkerProduction> {
                                       flex: 3,
                                       child: Text(
                                         'Product',
-                                        style: TextStyle(fontWeight: FontWeight.bold),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
                                     Expanded(
@@ -239,7 +230,9 @@ class _WorkerProductionState extends State<WorkerProduction> {
                                       child: Text(
                                         'Quantity',
                                         textAlign: TextAlign.center,
-                                        style: TextStyle(fontWeight: FontWeight.bold),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
                                     Expanded(
@@ -247,7 +240,9 @@ class _WorkerProductionState extends State<WorkerProduction> {
                                       child: Text(
                                         'Amount',
                                         textAlign: TextAlign.end,
-                                        style: TextStyle(fontWeight: FontWeight.bold),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -293,15 +288,20 @@ class _WorkerProductionState extends State<WorkerProduction> {
 
                                 // Production totals
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     const Text(
                                       'Total Cartons',
-                                      style: TextStyle(fontWeight: FontWeight.bold),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                     Text(
                                       '${production.totalCartons}',
-                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -309,11 +309,14 @@ class _WorkerProductionState extends State<WorkerProduction> {
                                 const SizedBox(height: 8),
 
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     const Text(
                                       'Total Amount',
-                                      style: TextStyle(fontWeight: FontWeight.bold),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                     Text(
                                       '${production.totalAmount.toStringAsFixed(2)} LE',
@@ -337,12 +340,11 @@ class _WorkerProductionState extends State<WorkerProduction> {
               );
             }
 
-            return const Center(
-              child: Text('No production data available.'),
-            );
+            return const Center(child: Text('No production data available.'));
           },
         ),
         floatingActionButton: FloatingActionButton.extended(
+          heroTag: 'add_production',
           onPressed: _openAddProduction,
           icon: const Icon(Icons.add),
           label: const Text('Add Production'),
@@ -375,18 +377,12 @@ class _SummaryCard extends StatelessWidget {
             const SizedBox(height: 14),
             Text(
               title,
-              style: TextStyle(
-                color: ColorManager.textSecondary,
-                fontSize: 13,
-              ),
+              style: TextStyle(color: ColorManager.textSecondary, fontSize: 13),
             ),
             const SizedBox(height: 6),
             Text(
               value,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
           ],
         ),

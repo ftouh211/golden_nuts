@@ -1,11 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:get_it/get_it.dart';
+import 'package:golds_nuts/core/services/fcm_token_manager.dart';
+import 'package:golds_nuts/core/services/firebase_messaging_service.dart';
+import 'package:golds_nuts/core/services/notification_handler.dart';
+import 'package:golds_nuts/core/services/notification_permission_service.dart';
 import 'package:golds_nuts/features/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:golds_nuts/features/auth/data/datasources/user_remote_data_source.dart';
 import 'package:golds_nuts/features/auth/domain/repo/auth_repo.dart';
 import 'package:golds_nuts/features/auth/domain/repo/auth_repository_impl.dart';
+import 'package:golds_nuts/features/auth/domain/repo/user_repo.dart';
+import 'package:golds_nuts/features/auth/domain/repo/user_repo_impl.dart';
+import 'package:golds_nuts/features/auth/domain/usecases/get_user_by_id_use_case.dart';
 import 'package:golds_nuts/features/auth/domain/usecases/login_usecase.dart';
 import 'package:golds_nuts/features/auth/domain/usecases/logout_usecase.dart';
 import 'package:golds_nuts/features/auth/presentation/bloc/login/login_bloc.dart';
@@ -15,6 +23,15 @@ import 'package:golds_nuts/features/inventory/domain/repo/inventory_remote_data_
 import 'package:golds_nuts/features/inventory/domain/repo/inventory_repository.dart';
 import 'package:golds_nuts/features/inventory/domain/usecases/get_inventory_use_case.dart';
 import 'package:golds_nuts/features/inventory/presentation/bloc/inventory_bloc.dart';
+import 'package:golds_nuts/features/notifications/data/datasources/notification_remote_data_source.dart';
+import 'package:golds_nuts/features/notifications/domain/repo/fcm_token_repository.dart';
+import 'package:golds_nuts/features/notifications/domain/repo/fcm_token_repository_impl.dart';
+import 'package:golds_nuts/features/notifications/domain/repo/notification_repository.dart';
+import 'package:golds_nuts/features/notifications/domain/repo/notification_repository_impl.dart';
+import 'package:golds_nuts/features/notifications/domain/usecases/delete_fcm_token_use_case.dart';
+import 'package:golds_nuts/features/notifications/domain/usecases/save_fcm_token_use_case.dart';
+import 'package:golds_nuts/features/notifications/domain/usecases/watch_notifications_use_case.dart';
+import 'package:golds_nuts/features/notifications/presentation/bloc/notifications_bloc.dart';
 import 'package:golds_nuts/features/outgoing/data/datasources/outgoing_remote_data_source.dart';
 import 'package:golds_nuts/features/outgoing/domain/repo/outgoing_repository.dart';
 import 'package:golds_nuts/features/outgoing/domain/repo/outgoing_repository_impl.dart';
@@ -50,6 +67,8 @@ import 'package:golds_nuts/features/production/presentation/bloc/production/add_
 import 'package:golds_nuts/features/production/presentation/bloc/production/get_monthly_productions/get_monthly_productions_bloc.dart';
 import 'package:golds_nuts/features/production/presentation/bloc/production/watch_monthly_productions/watch_monthly_productions_bloc.dart';
 
+import '../features/notifications/data/datasources/fcm_token_remote_data_source.dart';
+
 final sl = GetIt.instance;
 
 Future<void> setupDependencies() async {
@@ -78,15 +97,36 @@ Future<void> setupDependencies() async {
     () => LoginUseCase(repository: sl<AuthRepository>()),
   );
   // Bloc
-  sl.registerFactory<LoginBloc>(() => LoginBloc(sl<LoginUseCase>()));
-
+  sl.registerFactory<LoginBloc>(
+        () => LoginBloc(
+      loginUseCase: sl<LoginUseCase>(),
+      fcmTokenManager: sl<FcmTokenManager>(),
+    ),
+  );
   // Logout
   sl.registerLazySingleton<LogoutUseCase>(
     () => LogoutUseCase(repository: sl<AuthRepository>()),
   );
 
   sl.registerFactory<LogoutBloc>(
-    () => LogoutBloc(logoutUseCase: sl<LogoutUseCase>()),
+        () => LogoutBloc(
+      logoutUseCase: sl<LogoutUseCase>(),
+      fcmTokenManager: sl<FcmTokenManager>(),
+    ),
+  );
+
+  // User Repository
+  sl.registerLazySingleton<UserRepository>(
+        () => UserRepositoryImpl(
+      remoteDataSource: sl<UserRemoteDataSource>(),
+    ),
+  );
+
+// Get User By ID Use Case
+  sl.registerLazySingleton<GetUserByIdUseCase>(
+        () => GetUserByIdUseCase(
+      repository: sl<UserRepository>(),
+    ),
   );
   // ================= Product Feature =================
 
@@ -271,6 +311,92 @@ Future<void> setupDependencies() async {
         () => WatchMonthlyProductionsBloc(
       watchMonthlyProductionsUseCase:
       sl<WatchMonthlyProductionsUseCase>(),
+    ),
+  );
+
+  // ================= Notifications Feature =================
+
+// Data Source
+  sl.registerLazySingleton<NotificationRemoteDataSource>(
+        () => NotificationRemoteDataSource(
+      firestore: sl<FirebaseFirestore>(),
+    ),
+  );
+
+// Repository
+  sl.registerLazySingleton<NotificationRepository>(
+        () => NotificationRepositoryImpl(
+      remoteDataSource: sl<NotificationRemoteDataSource>(),
+    ),
+  );
+
+  sl.registerLazySingleton<WatchNotificationsUseCase>(
+        () => WatchNotificationsUseCase(
+      repository: sl<NotificationRepository>(),
+    ),
+  );
+
+  sl.registerFactory<NotificationsBloc>(
+        () => NotificationsBloc(
+      watchNotificationsUseCase: sl<WatchNotificationsUseCase>(),
+    ),
+  );
+
+  // Firebase Messaging
+  sl.registerLazySingleton<FirebaseMessaging>(
+        () => FirebaseMessaging.instance,
+  );
+
+// Notification Permission Service
+  sl.registerLazySingleton<NotificationPermissionService>(
+        () => NotificationPermissionService(
+      firebaseMessaging: sl<FirebaseMessaging>(),
+    ),
+  );
+
+  sl.registerLazySingleton<FcmTokenRemoteDataSource>(
+        () => FcmTokenRemoteDataSource(
+      firestore: sl<FirebaseFirestore>(),
+    ),
+  );
+  // FCM Token Repository
+  sl.registerLazySingleton<FcmTokenRepository>(
+        () => FcmTokenRepositoryImpl(
+      remoteDataSource: sl<FcmTokenRemoteDataSource>(),
+    ),
+  );
+
+  // Save FCM Token UseCase
+  sl.registerLazySingleton<SaveFcmTokenUseCase>(
+        () => SaveFcmTokenUseCase(
+      repository: sl<FcmTokenRepository>(),
+    ),
+  );
+
+// Delete FCM Token UseCase
+  sl.registerLazySingleton<DeleteFcmTokenUseCase>(
+        () => DeleteFcmTokenUseCase(
+      repository: sl<FcmTokenRepository>(),
+    ),
+  );
+
+  sl.registerLazySingleton<FcmTokenManager>(
+        () => FcmTokenManager(
+      permissionService: sl<NotificationPermissionService>(),
+      saveFcmTokenUseCase: sl<SaveFcmTokenUseCase>(),
+      deleteFcmTokenUseCase: sl<DeleteFcmTokenUseCase>(),
+    ),
+  );
+
+  sl.registerLazySingleton<FirebaseMessagingService>(
+        () => FirebaseMessagingService(
+      firebaseMessaging: sl<FirebaseMessaging>(),
+    ),
+  );
+
+  sl.registerLazySingleton<NotificationHandler>(
+        () => NotificationHandler(
+      messagingService: sl<FirebaseMessagingService>(),
     ),
   );
 }

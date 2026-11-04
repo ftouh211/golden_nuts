@@ -55,7 +55,10 @@ class OutgoingScreen extends StatelessWidget {
       child: Builder(
         builder: (context) {
           return Scaffold(
-            appBar: AppBar(title: const Text('Outgoing')),
+            appBar: AppBar(
+                automaticallyImplyLeading: false,
+
+                title: const Text('Outgoing')),
             body: BlocBuilder<OutgoingBloc, OutgoingState>(
               builder: (context, state) {
                 if (state is OutgoingRecordsLoading ||
@@ -95,6 +98,8 @@ class OutgoingScreen extends StatelessWidget {
               },
             ),
             floatingActionButton: FloatingActionButton.extended(
+              heroTag: 'add_outgoing',
+
               onPressed: () => _openAddOutgoing(context),
               backgroundColor: ColorManager.gold,
               foregroundColor: ColorManager.textPrimary,

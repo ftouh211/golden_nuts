@@ -8,5 +8,12 @@ abstract class LogoutEvent extends Equatable {
 }
 
 class LogoutRequested extends LogoutEvent {
-  const LogoutRequested();
+  final String uid;
+
+  const LogoutRequested({
+    required this.uid,
+  });
+
+  @override
+  List<Object?> get props => [uid];
 }

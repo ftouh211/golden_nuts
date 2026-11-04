@@ -1,5 +1,7 @@
 
 import 'package:flutter/material.dart';
+import 'package:golds_nuts/core/service_locator.dart';
+import 'package:golds_nuts/core/services/fcm_token_manager.dart';
 import 'package:golds_nuts/core/utils/color_manager.dart';
 import 'package:golds_nuts/features/auth/domain/entities/user_entity.dart';
 import 'package:golds_nuts/features/production/presentation/screens/worker/worker_production_history.dart';
@@ -19,15 +21,49 @@ class WorkerDashboardScreen extends StatefulWidget {
       _WorkerDashboardScreenState();
 }
 
-class _WorkerDashboardScreenState
-    extends State<WorkerDashboardScreen> {
+class _WorkerDashboardScreenState extends State<WorkerDashboardScreen>
+    with WidgetsBindingObserver {
   int _currentIndex = 0;
+
+  late final FcmTokenManager _fcmTokenManager;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Register lifecycle observer.
+    WidgetsBinding.instance.addObserver(this);
+
+    _fcmTokenManager = sl<FcmTokenManager>();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    if (state == AppLifecycleState.resumed) {
+      _checkNotificationPermission();
+    }
+  }
+
+  // Check notification permission when app returns to foreground.
+  Future<void> _checkNotificationPermission() async {
+    await _fcmTokenManager.registerDevice(
+      uid: widget.user.uid,
+    );
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final List<Widget> pages = [
       WorkerProduction(user: widget.user),
-      WorkerProductionHistory(user : widget.user),
+      WorkerProductionHistory(user: widget.user),
       WorkerSetting(user: widget.user),
     ];
 

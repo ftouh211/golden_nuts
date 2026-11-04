@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:get_it/get_it.dart';
 import 'package:golds_nuts/config/routes_manager/routes.dart';
 import 'package:golds_nuts/features/auth/presentation/bloc/login/login_bloc.dart';
 import 'package:golds_nuts/features/auth/presentation/bloc/login/login_event.dart';
 import 'package:golds_nuts/features/auth/presentation/bloc/login/login_state.dart';
-import 'package:golds_nuts/features/production/presentation/screens/worker/worker_production.dart';
 import 'package:golds_nuts/features/production/presentation/screens/worker/worker_dash_board_screen.dart';
+import 'package:golds_nuts/core/services/fcm_token_manager.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -40,10 +42,83 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _handleLoginSuccess(LoginSuccess state) async {
+    final user = state.user;
+
+    final prefs = await SharedPreferences.getInstance();
+    final promptKey = 'notification_prompt_shown_${user.uid}';
+
+    final hasShownPrompt = prefs.getBool(promptKey) ?? false;
+
+    if (!hasShownPrompt && mounted) {
+      // Save before showing the dialog to avoid repeating it.
+      await prefs.setBool(promptKey, true);
+
+      final shouldEnable = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          return AlertDialog(
+            icon: const Icon(
+              Icons.notifications_active_outlined,
+              size: 40,
+              color: Color(0xFF174D3A),
+            ),
+            title: const Text('Enable Notifications'),
+            content: const Text(
+              'Would you like to receive notifications about your production and factory updates?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(dialogContext, false);
+                },
+                child: const Text('Maybe Later'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(dialogContext, true);
+                },
+                child: const Text('Enable Notifications'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (shouldEnable == true) {
+        try {
+          await GetIt.I<FcmTokenManager>().requestPermissionAndRegister(
+            uid: user.uid,
+          );
+        } catch (e) {
+          // Notification errors must not block login.
+        }
+      }
+    }
+
+    if (!mounted) return;
+
+    // Navigate according to user role.
+    if (user.role == 'manager') {
+      Navigator.pushReplacementNamed(
+        context,
+        Routes.managerDashboardScreenRoute,
+        arguments: user,
+      );
+    } else if (user.role == 'worker') {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => WorkerDashboardScreen(user: user)),
+        (route) => false,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<LoginBloc, LoginState>(
-      listener: (context, state) {
+      listener: (context, state) async {
         if (state is LoginFailure) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(state.message), backgroundColor: Colors.red),
@@ -51,23 +126,9 @@ class _LoginScreenState extends State<LoginScreen> {
         }
 
         if (state is LoginSuccess) {
-          final user = state.user;
-
-          if (user.role == 'manager') {
-            Navigator.pushReplacementNamed(
-              context,
-              Routes.managerDashboardScreenRoute,
-            );
-          } else if (user.role == 'worker') {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(
-                builder: (_) => WorkerDashboardScreen(user: user),
-              ),
-                  (route) => false,
-            );
-          }
-        }      },
+          await _handleLoginSuccess(state);
+        }
+      },
       builder: (context, state) {
         final isLoading = state is LoginLoading;
 
@@ -160,7 +221,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                       ElevatedButton(
                         onPressed: isLoading ? null : () => login(context),
-
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF174D3A),
                           foregroundColor: Colors.white,

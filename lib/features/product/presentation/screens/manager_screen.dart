@@ -192,9 +192,11 @@ class _ManagerScreenState extends State<ManagerScreen> {
             builder: (context, state) {
               return Scaffold(
                 appBar: AppBar(
+                  automaticallyImplyLeading: false,
                   title: const Text('Products Management'),
                 ),
                 floatingActionButton: FloatingActionButton.extended(
+                  heroTag: 'add_production_1',
                   onPressed: () => _showAddProductDialog(context),
                   backgroundColor: ColorManager.gold,
                   foregroundColor: ColorManager.textPrimary,

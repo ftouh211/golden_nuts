@@ -1,7 +1,11 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:golds_nuts/core/service_locator.dart';
+import 'package:golds_nuts/core/services/fcm_token_manager.dart';
 import 'package:golds_nuts/core/utils/color_manager.dart';
+import 'package:golds_nuts/features/auth/domain/entities/user_entity.dart';
+import 'package:golds_nuts/features/auth/presentation/bloc/logout/logout_bloc.dart';
 import 'package:golds_nuts/features/dashboard/presentation/screens/manager_dashboard_home.dart';
 import 'package:golds_nuts/features/inventory/presentation/bloc/inventory_bloc.dart';
 import 'package:golds_nuts/features/inventory/presentation/bloc/inventory_event.dart';
@@ -14,19 +18,60 @@ import 'package:golds_nuts/features/product/presentation/screens/create_worker/c
 import 'package:golds_nuts/features/product/presentation/screens/manager_screen.dart';
 import 'package:golds_nuts/features/production/presentation/bloc/production/get_monthly_productions/get_monthly_productions_bloc.dart';
 import 'package:golds_nuts/features/production/presentation/bloc/production/get_monthly_productions/get_monthly_productions_event.dart';
+import 'package:golds_nuts/features/settings/presentation/screens/settings_screen.dart';
 
 class ManagerDashboardScreen extends StatefulWidget {
-  const ManagerDashboardScreen({super.key});
+  final UserEntity user;
+
+  const ManagerDashboardScreen({
+    super.key,
+    required this.user,
+  });
 
   @override
   State<ManagerDashboardScreen> createState() =>
       _ManagerDashboardScreenState();
 }
 
-class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
+class _ManagerDashboardScreenState extends State<ManagerDashboardScreen>
+    with WidgetsBindingObserver {
   int _currentIndex = 0;
 
-  // Refresh all dashboard data
+  late final FcmTokenManager _fcmTokenManager;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Register lifecycle observer.
+    WidgetsBinding.instance.addObserver(this);
+
+    _fcmTokenManager = sl<FcmTokenManager>();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    if (state == AppLifecycleState.resumed) {
+      _checkNotificationPermission();
+    }
+  }
+
+  // Check permission when app returns to foreground.
+  Future<void> _checkNotificationPermission() async {
+    await _fcmTokenManager.registerDevice(
+      uid: widget.user.uid,
+    );
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // Refresh all dashboard data.
   void _refreshDashboard(BuildContext context) {
     context.read<GetWorkersBloc>().add(
       const GetWorkersRequested(),
@@ -47,13 +92,13 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
     );
   }
 
-  // Navigate between manager pages
+  // Navigate between manager pages.
   void _onNavigate(BuildContext context, int index) {
     setState(() {
       _currentIndex = index;
     });
 
-    // Refresh whenever the manager returns to Home
+    // Refresh whenever the manager returns to Home.
     if (index == 0) {
       _refreshDashboard(context);
     }
@@ -79,15 +124,16 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
         ),
         BlocProvider(
           create: (_) => sl<InventoryBloc>()
-            ..add(
-              GetInventoryEvent(),
-            ),
+            ..add(GetInventoryEvent()),
         ),
         BlocProvider(
           create: (_) => sl<OutgoingBloc>()
-            ..add(
-              GetOutgoingRecordsEvent(),
-            ),
+            ..add(GetOutgoingRecordsEvent()),
+        ),
+
+        // Logout Bloc
+        BlocProvider(
+          create: (_) => sl<LogoutBloc>(),
         ),
       ],
       child: Builder(
@@ -97,7 +143,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
               index: _currentIndex,
               children: [
                 ManagerDashboardHome(
-                  managerName: 'test',
+                  user: widget.user,
                   onNavigate: (index) {
                     _onNavigate(providerContext, index);
                   },
@@ -105,10 +151,18 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                 const ManagerScreen(),
                 const CreateWorker(),
                 const OutgoingScreen(),
+
+                SettingsScreen(
+                  user: widget.user,
+                  onBack: () {
+                    _onNavigate(providerContext, 0);
+                  },
+                ),
               ],
             ),
-
-            bottomNavigationBar: BottomNavigationBar(
+            bottomNavigationBar: _currentIndex == 4
+                ? null
+                : BottomNavigationBar(
               currentIndex: _currentIndex,
               onTap: (index) {
                 _onNavigate(providerContext, index);
@@ -142,8 +196,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                   label: 'Outgoing',
                 ),
               ],
-            ),
-          );
+            ),          );
         },
       ),
     );
